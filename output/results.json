@@ -1,0 +1,142 @@
+{
+  "kpis": {
+    "total_definitions_scanned": 12,
+    "conflicting_definitions_found": 8,
+    "conflict_groups": 3,
+    "teams_affected": 6,
+    "pct_definitions_in_conflict": 66.7,
+    "highest_trust_risk": 85
+  },
+  "conflicts": [
+    {
+      "names": [
+        "monthly_revenue",
+        "revenue_monthly"
+      ],
+      "teams": [
+        "Finance",
+        "Marketing",
+        "Sales"
+      ],
+      "metric_ids": [
+        "m01",
+        "m02",
+        "m03"
+      ],
+      "conflicts": [
+        "Refund handling differs (some include refunds, some don't)",
+        "Filter logic differs across definitions"
+      ],
+      "trust_risk": 85,
+      "avg_similarity": 0.853,
+      "definitions": [
+        {
+          "team": "Finance",
+          "name": "monthly_revenue",
+          "description": "Total revenue from completed orders, grouped by month. Excludes refunds and cancellations.",
+          "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) AS revenue FROM orders WHERE status = 'completed' GROUP BY 1"
+        },
+        {
+          "team": "Sales",
+          "name": "monthly_revenue",
+          "description": "Revenue per month across all orders placed, including pending and refunded.",
+          "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount) AS revenue FROM orders GROUP BY 1"
+        },
+        {
+          "team": "Marketing",
+          "name": "revenue_monthly",
+          "description": "Net monthly revenue after subtracting refunds, for completed and shipped orders.",
+          "sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(amount - refund_amount) AS revenue FROM orders WHERE status IN ('completed','shipped') GROUP BY 1"
+        }
+      ],
+      "recommended_concept": "Revenue (Monthly)",
+      "glossary_owner": "Finance",
+      "retrieval_similarity": 0.576,
+      "recommendation": "Canonical definition (Finance glossary): net revenue = SUM(amount - refund_amount) for orders WHERE status = 'completed', grouped by calendar month.\n\nRequired changes per team:\n\u2022 Finance \u2014 correct: already filters completed orders. Add refund subtraction: SUM(amount) \u2192 SUM(amount - refund_amount).\n\u2022 Sales \u2014 remove all-orders scan; add WHERE status = 'completed' and subtract refunds. Current figure inflates revenue by the full refund amount.\n\u2022 Marketing \u2014 remove 'shipped' from status filter; 'completed' only. Refund subtraction already present \u2014 keep it.\n\nExecutive impact: Finance and Sales dashboards currently diverge by the refund rate (typically 5\u201315%), making quarterly revenue reviews unreliable and growth forecasts inconsistent across leadership decks."
+    },
+    {
+      "names": [
+        "MAU",
+        "active_users",
+        "monthly_active_users"
+      ],
+      "teams": [
+        "Data",
+        "Growth",
+        "Product"
+      ],
+      "metric_ids": [
+        "m04",
+        "m05",
+        "m06"
+      ],
+      "conflicts": [
+        "Time window differs: ['30d_rolling', 'calendar_month']",
+        "Filter logic differs across definitions"
+      ],
+      "trust_risk": 85,
+      "avg_similarity": 0.869,
+      "definitions": [
+        {
+          "team": "Product",
+          "name": "active_users",
+          "description": "Distinct users with any event in the trailing 30 days.",
+          "sql": "SELECT COUNT(DISTINCT user_id) FROM events WHERE event_date >= CURRENT_DATE - INTERVAL '30 days'"
+        },
+        {
+          "team": "Growth",
+          "name": "MAU",
+          "description": "Monthly active users: distinct users active in the current calendar month.",
+          "sql": "SELECT COUNT(DISTINCT user_id) FROM events WHERE DATE_TRUNC('month', event_date) = DATE_TRUNC('month', CURRENT_DATE)"
+        },
+        {
+          "team": "Data",
+          "name": "monthly_active_users",
+          "description": "Users who logged in at least once in the last 30 days. Only counts login events.",
+          "sql": "SELECT COUNT(DISTINCT user_id) FROM events WHERE event_type = 'login' AND event_date >= CURRENT_DATE - INTERVAL '30 days'"
+        }
+      ],
+      "recommended_concept": "Monthly Active Users (MAU)",
+      "glossary_owner": "Product Analytics",
+      "retrieval_similarity": 0.462,
+      "recommendation": "Canonical definition (Product Analytics glossary): distinct users with at least one qualifying event (ANY event, not only logins) in the current CALENDAR month.\n\nRequired changes per team:\n\u2022 Product \u2014 switch from trailing-30-day window to calendar-month window. (CURRENT_DATE - 30 days) and (calendar month) diverge mid-month by up to 30 days.\n\u2022 Growth \u2014 already uses calendar month. Verify all event types are counted, not just a subset; SQL looks correct.\n\u2022 Data \u2014 remove event_type = 'login' restriction (MAU counts any engagement, not only logins) and switch to calendar-month window to match the standard.\n\nExecutive impact: Board-level MAU can show a 10\u201320% discrepancy between Product and Data teams \u2014 understating engagement in investor reports and mis-calibrating growth targets."
+    },
+    {
+      "names": [
+        "AOV",
+        "average_order_value"
+      ],
+      "teams": [
+        "Finance",
+        "Growth"
+      ],
+      "metric_ids": [
+        "m11",
+        "m12"
+      ],
+      "conflicts": [
+        "Filter logic differs across definitions"
+      ],
+      "trust_risk": 50,
+      "avg_similarity": 0.959,
+      "definitions": [
+        {
+          "team": "Growth",
+          "name": "average_order_value",
+          "description": "Average value per completed order.",
+          "sql": "SELECT SUM(amount) / COUNT(DISTINCT order_id) FROM orders WHERE status = 'completed'"
+        },
+        {
+          "team": "Finance",
+          "name": "AOV",
+          "description": "Average order value net of refunds across all orders.",
+          "sql": "SELECT SUM(amount - refund_amount) / COUNT(DISTINCT order_id) FROM orders"
+        }
+      ],
+      "recommended_concept": "Average Order Value (AOV)",
+      "glossary_owner": "Finance",
+      "retrieval_similarity": 0.601,
+      "recommendation": "Canonical definition (Finance glossary): AOV = SUM(amount - refund_amount) / COUNT(DISTINCT order_id) for completed orders only.\n\nRequired changes per team:\n\u2022 Growth \u2014 add refund subtraction: SUM(amount) \u2192 SUM(amount - refund_amount). Filter to completed orders: add WHERE status = 'completed'.\n\u2022 Finance \u2014 restrict denominator to completed orders: add WHERE status = 'completed' to exclude pending/cancelled orders from the order count.\n\nExecutive impact: AOV figures differ by the return rate (typically 3\u20138%), causing misaligned pricing decisions and GMV discussions between Finance and Growth in business reviews."
+    }
+  ]
+}

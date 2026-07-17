@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MetricGuard — Metric Trust Audit</title>
+<script src="data.js"></script>
+<style>
+  :root{
+    --ink:#0d1117; --panel:#151b23; --line:#232c38;
+    --dim:#7d8896; --text:#c9d4e0; --bright:#f0f6fc;
+    --safe:#3fb950; --warn:#d29922; --danger:#f85149;
+    --accent:#58a6ff; --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--text);font-family:var(--sans);line-height:1.5;
+    background-image:radial-gradient(circle at 20% -10%,rgba(88,166,255,.06),transparent 40%);
+    min-height:100vh;padding:32px 20px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:28px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:10px}
+  h1{font-size:34px;color:var(--bright);font-weight:700;letter-spacing:-.02em}
+  h1 .g{color:var(--danger)}
+  .sub{color:var(--dim);margin-top:8px;max-width:640px;font-size:14px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:34px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 16px;position:relative;overflow:hidden}
+  .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+  .kpi.bad::before{background:var(--danger)}
+  .kpi .n{font-family:var(--mono);font-size:30px;color:var(--bright);font-weight:600;line-height:1}
+  .kpi .l{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+  .sec-title{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--dim);margin:8px 0 16px;display:flex;align-items:center;gap:10px}
+  .sec-title::after{content:'';flex:1;height:1px;background:var(--line)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:18px;overflow:hidden}
+  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+    padding:20px 22px;border-bottom:1px solid var(--line)}
+  .names{font-family:var(--mono);font-size:17px;color:var(--bright);font-weight:600}
+  .teams{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:20px;
+    background:var(--ink);border:1px solid var(--line);color:var(--dim)}
+  .gauge{text-align:center;flex-shrink:0;min-width:92px}
+  .gauge .val{font-family:var(--mono);font-size:26px;font-weight:700}
+  .gauge .cap{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-top:2px}
+  .bar{height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+  .bar i{display:block;height:100%}
+  .body{padding:20px 22px}
+  .problems{list-style:none;margin-bottom:18px}
+  .problems li{font-size:13px;padding:8px 0 8px 22px;position:relative;border-bottom:1px dashed var(--line)}
+  .problems li:last-child{border-bottom:none}
+  .problems li::before{content:'▲';position:absolute;left:0;color:var(--warn);font-size:10px;top:10px}
+  .defs{display:grid;gap:10px;margin-bottom:18px}
+  .def{background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .def .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .def .team{font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .def .mn{font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .def .desc{font-size:12px;color:var(--text);margin-bottom:8px}
+  .def code{display:block;font-family:var(--mono);font-size:11px;color:var(--dim);
+    background:#0a0e14;border:1px solid var(--line);border-radius:6px;padding:8px 10px;overflow-x:auto;white-space:pre-wrap}
+  .rec{border:1px solid var(--accent);border-radius:10px;padding:16px 18px;background:rgba(88,166,255,.05)}
+  .rec .rh{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:6px;display:flex;justify-content:space-between}
+  .rec .concept{color:var(--bright);font-weight:600;margin-bottom:8px;font-size:15px}
+  .rec .txt{font-size:13px;color:var(--text);white-space:pre-wrap}
+  .rec .owner{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10px}
+  footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);
+    font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;letter-spacing:.05em}
+  footer b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Metric Trust Audit · Semantic Consistency Report</div>
+    <h1>Metric<span class="g">Guard</span></h1>
+    <p class="sub">Scanned every team's metric definitions, matched them by <b>meaning</b> using
+      embeddings, and flagged where the same business metric is computed differently — the
+      silent reason dashboards disagree and executives stop trusting the numbers.</p>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sec-title">Detected conflicts · ranked by trust risk</div>
+  <div id="conflicts"></div>
+
+  <footer>
+    MetricGuard · embeddings + vector similarity + RAG-grounded LLM agent ·
+    engine reconciles definitions against a <b>governed glossary</b>
+  </footer>
+</div>
+
+<script>
+const riskColor = r => r>=70?'var(--danger)':r>=40?'var(--warn)':'var(--safe)';
+const d = MG_DATA;
+
+const kpiDefs = [
+  {n:d.kpis.total_definitions_scanned, l:'Definitions scanned'},
+  {n:d.kpis.conflicting_definitions_found, l:'In conflict', bad:true},
+  {n:d.kpis.pct_definitions_in_conflict+'%', l:'Conflict rate', bad:true},
+  {n:d.kpis.conflict_groups, l:'Conflict groups'},
+  {n:d.kpis.teams_affected, l:'Teams affected'},
+  {n:d.kpis.highest_trust_risk, l:'Peak risk score', bad:true},
+];
+document.getElementById('kpis').innerHTML = kpiDefs.map(k=>
+  `<div class="kpi ${k.bad?'bad':''}"><div class="n">${k.n}</div><div class="l">${k.l}</div></div>`
+).join('');
+
+document.getElementById('conflicts').innerHTML = d.conflicts.map(c=>{
+  const rc = riskColor(c.trust_risk);
+  const chips = c.teams.map(t=>`<span class="chip">${t}</span>`).join('');
+  const probs = c.conflicts.map(p=>`<li>${p}</li>`).join('');
+  const defs = c.definitions.map(x=>`
+    <div class="def">
+      <div class="dh"><span class="team">${x.team}</span><span class="mn">${x.name}</span></div>
+      <div class="desc">${x.description}</div>
+      <code>${x.sql.replace(/</g,'&lt;')}</code>
+    </div>`).join('');
+  const rec = c.recommendation ? `
+    <div class="rec">
+      <div class="rh"><span>Agent recommendation · RAG-grounded</span>
+        <span>match ${c.retrieval_similarity ?? ''}</span></div>
+      <div class="concept">${c.recommended_concept||''}</div>
+      <div class="txt">${(c.recommendation||'').replace(/</g,'&lt;')}</div>
+      <div class="owner">Canonical owner: ${c.glossary_owner||'—'}</div>
+    </div>` : '';
+  return `
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="names">${c.names.join('  ≟  ')}</div>
+        <div class="teams">${chips}</div>
+      </div>
+      <div class="gauge">
+        <div class="val" style="color:${rc}">${c.trust_risk}</div>
+        <div class="cap">trust risk</div>
+        <div class="bar"><i style="width:${c.trust_risk}%;background:${rc}"></i></div>
+      </div>
+    </div>
+    <div class="body">
+      <ul class="problems">${probs}</ul>
+      <div class="defs">${defs}</div>
+      ${rec}
+    </div>
+  </div>`;
+}).join('');
+</script>
+</body>
+</html>
